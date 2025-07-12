@@ -1,15 +1,17 @@
 import asyncio
-from aiogram import Bot, Dispatcher, types
+import os
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.enums import ParseMode
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from abbreviations import find_abbreviation
 
-API_TOKEN = "7316017191:AAHlJrgk1n_WsgOpHeHUB2zd97m3-tugfs8"
+API_TOKEN = os.getenv("BOT_TOKEN")  # получаем токен из переменной окружения
 
 bot = Bot(token=API_TOKEN, parse_mode=ParseMode.HTML)
 dp = Dispatcher()
 
+# Хэндлер на входящее сообщение
 @dp.message()
 async def handle_message(message: Message):
     query = message.text.strip()
@@ -22,58 +24,41 @@ async def handle_message(message: Message):
     if not matches:
         await message.answer("Извините, такого сокращения не найдено. Глоссарий дополняется.")
         with open("unknown_abbr.txt", "a", encoding="utf-8") as f:
-            f.write(query + "\n")
+            f.write(f"{query}\n")
         return
 
-    item = matches[0]
-    abbr = item["abbr"]
-    full = item["full"]
-    description = item.get("description")
-    source = item.get("source")
+    for item in matches:
+        # Создаем текст для расшифровки
+        text = f"<b>{item['abbr']}</b>\n<b>Расшифровка:</b> {item['full']}"
 
-    keyboard = InlineKeyboardBuilder()
-    if description:
-        keyboard.button(text="ℹ️ Пояснение", callback_data=f"desc_{abbr}")
-    keyboard.button(text="🏠 Домой", callback_data="home")
+        # Создаем кнопки
+        keyboard = InlineKeyboardBuilder()
+        if item.get("description"):
+            keyboard.button(text="Пояснение", callback_data=f"desc|{item['abbr']}")
+        keyboard.button(text="⬅️ Домой", callback_data="home")
+        await message.answer(text, reply_markup=keyboard.as_markup())
 
-    await message.answer(
-        f"🔹 <b>{abbr}</b>\n<b>Расшифровка:</b> {full}",
-        reply_markup=keyboard.as_markup()
-    )
+# Обработчик кнопки "Пояснение"
+@dp.callback_query(F.data.startswith("desc|"))
+async def send_description(callback: CallbackQuery):
+    abbr = callback.data.split("|")[1]
+    match = find_abbreviation(abbr)
+    if match and match[0].get("description"):
+        description = match[0]["description"]
+        source = match[0].get("source", "")
+        text = f"<b>Пояснение:</b> {description}"
+        if source:
+            text += f"\n<b>Источник:</b> {source}"
+        await callback.message.answer(text)
+    else:
+        await callback.answer("Нечего показать.", show_alert=True)
 
-@dp.callback_query()
-async def handle_callback(callback: CallbackQuery):
-    try:
-        data = callback.data
+# Обработчик кнопки "Домой"
+@dp.callback_query(F.data == "home")
+async def go_home(callback: CallbackQuery):
+    await callback.message.answer("Введите аббревиатуру для поиска.")
 
-        if data == "home":
-            await callback.message.answer("Введите новую аббревиатуру:")
-            await callback.answer()
-            return
-
-        if data.startswith("desc_"):
-            abbr = data.split("_", 1)[1]
-            matches = find_abbreviation(abbr)
-            if not matches:
-                await callback.message.answer("Информация не найдена.")
-                await callback.answer()
-                return
-
-            item = matches[0]
-            description = item.get("description", "Нет пояснения.")
-            source = item.get("source", "Источник не указан.")
-
-            await callback.message.answer(
-                f"<b>Пояснение:</b> {description}\n<b>Источник:</b> {source}",
-                parse_mode=ParseMode.HTML
-            )
-            await callback.answer()
-    except Exception:
-        try:
-            await callback.answer()
-        except:
-            pass
-
+# Запуск бота
 async def main():
     await dp.start_polling(bot)
 
