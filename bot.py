@@ -7,6 +7,8 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from abbreviations import find_abbreviation
 
 API_TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = 839088319  # Ваш Telegram user ID
+
 bot = Bot(token=API_TOKEN, parse_mode=ParseMode.HTML)
 dp = Dispatcher()
 
@@ -22,10 +24,9 @@ async def handle_message(message: Message):
     if not matches:
         await message.answer("Извините, такого сокращения не найдено. Глоссарий дополняется.")
         try:
-            with open("unknown_abbr.txt", "a", encoding="utf-8") as f:
-                f.write(f"{query}\n")
+            await bot.send_message(ADMIN_ID, f"Неизвестное сокращение: {query}")
         except Exception as e:
-            print(f"Ошибка при сохранении неизвестной аббревиатуры: {e}")
+            print(f"Не удалось отправить сообщение администратору: {e}")
         return
 
     item = matches[0]
