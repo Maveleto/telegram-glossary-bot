@@ -7,7 +7,6 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from abbreviations import find_abbreviation
 
 API_TOKEN = os.getenv("BOT_TOKEN")
-
 bot = Bot(token=API_TOKEN, parse_mode=ParseMode.HTML)
 dp = Dispatcher()
 
@@ -22,8 +21,11 @@ async def handle_message(message: Message):
 
     if not matches:
         await message.answer("Извините, такого сокращения не найдено. Глоссарий дополняется.")
-        with open("unknown_abbr.txt", "a", encoding="utf-8") as f:
-            f.write(f"{query}\n")
+        try:
+            with open("unknown_abbr.txt", "a", encoding="utf-8") as f:
+                f.write(f"{query}\n")
+        except Exception as e:
+            print(f"Ошибка при сохранении неизвестной аббревиатуры: {e}")
         return
 
     item = matches[0]
@@ -65,4 +67,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
