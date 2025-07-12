@@ -1,0 +1,11 @@
+# render.yaml
+services:
+  - type: web
+    name: telegram-glossary-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: BOT_TOKEN
+        value: 7316017191:AAHlJrgk1n_WsgOpHeHUB2zd97m3-tugfs8
+    pythonVersion: 3.11.8
